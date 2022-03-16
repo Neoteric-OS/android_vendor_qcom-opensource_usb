@@ -61,7 +61,7 @@ else
   # USB Gadget HAL is enabled on newer targets and takes the place
   # of the init-based configfs rules for setting USB compositions
   #
-  ifneq ($(filter seraph niobe taro kalama pineapple sun parrot blair monaco pitti volcano anorak61 neo61,$(TARGET_BOARD_PLATFORM)),)
+  ifneq ($(filter seraph niobe taro neo kalama pineapple sun parrot blair monaco pitti volcano anorak61 neo61,$(TARGET_BOARD_PLATFORM)),)
     PRODUCT_PROPERTY_OVERRIDES += vendor.usb.use_gadget_hal=1
     PRODUCT_PACKAGES += android.hardware.usb.gadget-service.qti
     PRODUCT_PACKAGES += usb_compositions.conf
