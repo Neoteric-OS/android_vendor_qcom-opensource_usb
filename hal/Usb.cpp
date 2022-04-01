@@ -62,6 +62,7 @@
 #define ID_PATH "id"
 #define VBUS_PATH "b_sess"
 #define USB_DATA_PATH "usb_data_enabled"
+#define USB_DATA_PATH_SEC "/sys/devices/virtual/usb_notify/usb_control/disable"
 
 namespace aidl {
 namespace android {
@@ -138,7 +139,8 @@ ScopedAStatus Usb::enableUsbData(const std::string &in_portName, bool in_enable,
       if (!ret) {
         ALOGW("Not able to set Vbus state");
       }
-      ret = WriteStringToFile("0", mDevicePath + USB_DATA_PATH);
+      ret = WriteStringToFile("0", mDevicePath + USB_DATA_PATH) ||
+            WriteStringToFile("ON", USB_DATA_PATH_SEC);
       if (!ret) {
         ALOGE("Not able to turn off usb connection notification");
         status = Status::ERROR;
@@ -152,7 +154,8 @@ ScopedAStatus Usb::enableUsbData(const std::string &in_portName, bool in_enable,
   } else {
     ret = WriteStringToFile("0", dwcDriver + "dynamic_disable");
     if (!ret) {
-      ret = WriteStringToFile("1", mDevicePath + USB_DATA_PATH);
+      ret = WriteStringToFile("1", mDevicePath + USB_DATA_PATH) ||
+            WriteStringToFile("OFF", USB_DATA_PATH_SEC);
       if (!ret) {
         ALOGE("Not able to turn on usb connection notification");
         status = Status::ERROR;
