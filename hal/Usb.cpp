@@ -1097,6 +1097,7 @@ out:
 }  // namespace android
 }  // namespace aidl
 
+#ifndef __LIBFUZZON_LOCAL__
 int main() {
     using ::aidl::android::hardware::usb::Usb;
 
@@ -1110,3 +1111,26 @@ int main() {
     ABinderProcess_joinThreadPool();
     return -1; // Should never be reached
 }
+
+#else
+
+#include <fuzzbinder/libbinder_ndk_driver.h>
+#include <fuzzer/FuzzedDataProvider.h>
+
+std::shared_ptr<::aidl::android::hardware::usb::Usb> service;
+
+extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
+    service = ndk::SharedRefBase::make<::aidl::android::hardware::usb::Usb>();
+    return 0;
+}
+
+extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+    if( service == nullptr ) return 0;
+
+    FuzzedDataProvider provider(data, size);
+    android::fuzzService(service->asBinder().get(),std::move(provider));
+
+    return 0;
+}
+
+#endif
