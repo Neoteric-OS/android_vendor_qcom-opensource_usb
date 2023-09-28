@@ -109,9 +109,6 @@ if [ "$(getprop ro.build.type)" != "user" ]; then
 				  "taro" | "kalama")
 			  setprop persist.vendor.usb.config diag,serial_cdev,rmnet,dpl,qdss,adb
 		      ;;
-		      "pineapple" | "sun")
-			  setprop persist.vendor.usb.config adb
-		      ;;
 	              *)
 		          setprop persist.vendor.usb.config diag,adb
 		      ;;
