@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -337,6 +337,12 @@ static Status validateAndSetVidPid(uint64_t functions) {
     case GadgetFunction::ADB | GadgetFunction::NCM:
       ret = setVidPid("0x18d1", "0x4eec");
       break;
+    case GadgetFunction::UVC:
+      ret = setVidPid("0x18d1", "0x4eed");
+      break;
+    case GadgetFunction::ADB | GadgetFunction::UVC:
+      ret = setVidPid("0x18d1", "0x4eee");
+      break;
     default:
       ALOGE("Combination not supported");
       ret = ::android::hardware::usb::gadget::V1_0::Status::CONFIGURATION_NOT_SUPPORTED;
@@ -396,9 +402,16 @@ Status UsbGadget::setupFunctions(
   } else { // standard Android supported functions
     WriteStringToFile("android", CONFIG_STRING);
 
-    if (addGenericAndroidFunctions(&mMonitorFfs, functions, &ffsEnabled, &i)
-              != ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
-      return Status::ERROR;
+    if ((functions & GadgetFunction::UVC) == 0) {
+      if (addGenericAndroidFunctions(&mMonitorFfs, functions, &ffsEnabled, &i)
+                != ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
+        return Status::ERROR;
+    } else {
+        ALOGI("setCurrentUsbFunctions uvc");
+        if (linkFunction("uvc.0", i++)) {
+            return Status::ERROR;
+        }
+    }
 
     if ((functions & GadgetFunction::ADB) != 0) {
       ffsEnabled = true;
