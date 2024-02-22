@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -63,6 +63,7 @@ using ::android::base::Trim;
 using ::android::base::ReadFileToString;
 using ::android::base::WriteStringToFile;
 
+static const std::string BACKLIGHT_PATH = "/sys/class/backlight/panel0-backlight/brightness";
 const char GOOGLE_USB_VENDOR_ID_STR[] = "18d1";
 const char GOOGLE_USBC_35_ADAPTER_UNPLUGGED_ID_STR[] = "5029";
 
@@ -71,6 +72,7 @@ static void checkUsbInHostMode();
 static void checkUsbDeviceAutoSuspend(const std::string& devicePath);
 static bool checkUsbInterfaceAutoSuspend(const std::string& devicePath,
         const std::string &intf);
+static bool checkUsbHidOnly(const std::string& devicePath);
 
 static void getUsbControllerPath(std::string &controllerPath) {
   std::string controllerName = GetProperty(USB_CONTROLLER_PROP, "");
@@ -318,6 +320,66 @@ ScopedAStatus Usb::switchRole(const std::string &portName, const PortRole &newRo
   }
 
   return ScopedAStatus::ok();
+}
+
+static void manageHidPower(const std::string& path, bool allow) {
+  std::string runtimeState;
+  bool ret = false;
+
+  ret = ReadFileToString(path + "/power/runtime_status", &runtimeState);
+  if (ret && runtimeState == "active") {
+    ret = WriteStringToFile("on", path + "/power/control");
+    if (!ret)
+          return;
+  }
+
+  ret = WriteStringToFile(allow ? "3000" : "60000", path + "/power/autosuspend_delay_ms");
+  if (!ret)
+        return;
+
+  WriteStringToFile("auto", path + "/power/control");
+}
+
+/*
+ * Checks for if the display is off.  This is useful for triggerring
+ * USB suspend routines for certain use cases.  One example is when a USB
+ * HID device, such as a mouse or keyboard is connected, and to avoid
+ * frequent bus suspend/resume iterations if the display is on.
+ */
+static bool isDisplayOff(void) {
+  std::string brightness;
+
+  if (!ReadFileToString(BACKLIGHT_PATH, &brightness)) {
+    ALOGE("isDisplayOff: Failed to open brightness file");
+    return false;
+  }
+
+  if (std::stoi(brightness) > 0)
+    return false;
+
+  return true;
+}
+
+static void removeUsbHIDDevice(struct Usb *usb, const std::string &devicePath) {
+  usb->hidDevs.remove(devicePath);
+}
+
+static void checkUsbHIDDevice(struct Usb *usb, std::string&& devicePath) {
+  if (checkUsbHidOnly(devicePath)) {
+    /*
+     * Keep track of connected devices with HID interfaces, so that based
+     * on display brightness events, the autosuspend timer can be adjusted
+     * for all HID devices.
+     */
+    usb->hidDevs.push_back(std::move(devicePath));
+  }
+}
+
+static void handleDisplayEvent(struct Usb *usb) {
+  bool displayOff = isDisplayOff();
+
+  for (auto dev : usb->hidDevs)
+      manageHidPower(dev, displayOff);
 }
 
 static Status getAccessoryConnected(const std::string &portName, std::string &accessory) {
@@ -685,6 +747,7 @@ static void uevent_event(const unique_fd &uevent_fd, struct Usb *usb) {
   static std::regex udc_regex("(add|remove)@/devices/platform/soc/.*/" + gadgetName +
                               "/udc/" + gadgetName);
   static std::regex offline_regex("offline@(/devices/platform/.*dwc3/xhci-hcd\\.\\d\\.auto/usb.*)");
+  static std::regex backlight_regex("change@(/devices/platform/soc/.*qcom,mdss_mdp/backlight/panel0-backlight)");
   static std::regex dwc3_regex("\\/(\\w+.\\w+usb)/.*dwc3");
 
   n = uevent_kernel_multicast_recv(uevent_fd.get(), msg, UEVENT_MSG_LEN);
@@ -710,6 +773,7 @@ static void uevent_event(const unique_fd &uevent_fd, struct Usb *usb) {
       std::csub_match devpath = match[1];
       std::csub_match intfpath = match[2];
       checkUsbInterfaceAutoSuspend("/sys" + devpath.str(), intfpath.str());
+      checkUsbHIDDevice(usb, "/sys" + devpath.str());
     }
   } else if (std::regex_match(msg, match, udc_regex)) {
     if (!strncmp(msg, "add", 3)) {
@@ -777,6 +841,9 @@ static void uevent_event(const unique_fd &uevent_fd, struct Usb *usb) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
       WriteStringToFile("1", "/sys" + parentpath.str() + "/authorized");
     }
+    removeUsbHIDDevice(usb, "/sys" + devpath.str());
+  } else if (std::regex_match(msg, match, backlight_regex)) {
+    handleDisplayEvent(usb);
   }
 }
 
@@ -1042,6 +1109,38 @@ static bool canUsbDeviceAutoSuspend(const std::string &devicePath) {
 }
 
 /*
+ * Checks to see if the added device is a USB device that contains only
+ * USB HID interfaces.  For devices, such as USB headsets that have volume
+ * control, avoid modifying the autosuspend timer and introducing the
+ * logic to check for display brightness.
+ */
+static bool checkUsbHidOnly(const std::string& devicePath) {
+  DIR *dp = opendir(devicePath.c_str());
+  bool hidOnly = false;
+
+  if (dp != NULL) {
+    struct dirent *intfDir;
+    int interfaceClass;
+    int ret;
+
+    while ((intfDir = readdir(dp))) {
+      if (intfDir->d_type == DT_DIR && strchr(intfDir->d_name, ':')) {
+        interfaceClass = getDeviceInterfaceClass(devicePath, intfDir->d_name);
+        if (interfaceClass == USB_CLASS_HID) {
+           hidOnly = true;
+        } else {
+           hidOnly = false;
+           break;
+        }
+      }
+    }
+    closedir(dp);
+  }
+
+  return hidOnly;
+}
+
+/*
  * function to consume USB device plugin events (on receiving a
  * USB device path string), and enable autosupend on the USB device if
  * necessary.
@@ -1067,6 +1166,10 @@ static bool checkUsbInterfaceAutoSuspend(const std::string& devicePath,
 
   // allow autosuspend for certain class devices
   switch (interfaceClass) {
+    case USB_CLASS_HID:
+       // If display is on, don't allow immediate autosuspend of HID dev
+       if (checkUsbHidOnly(devicePath) && !isDisplayOff())
+          manageHidPower(devicePath, false);
     case USB_CLASS_AUDIO:
     case USB_CLASS_HUB:
       ALOGI("auto suspend usb interfaces %s", devicePath.c_str());

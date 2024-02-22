@@ -17,7 +17,7 @@
  * limitations under the License.
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -27,6 +27,7 @@
 #include <aidl/android/hardware/usb/BnUsb.h>
 #include <aidl/android/hardware/usb/BnUsbCallback.h>
 #include <condition_variable>
+#include <list>
 #include <mutex>
 #include <thread>
 #include <utils/Log.h>
@@ -92,6 +93,8 @@ struct Usb : public BnUsb {
     bool usbDataDisabled;
     // Limit power transfer
     bool limitedPower;
+    // List of connected HID USB devices
+    std::list <std::string> hidDevs;
 
   private:
     std::thread mPoll;
