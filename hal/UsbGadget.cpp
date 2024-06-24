@@ -54,6 +54,7 @@
 #define PERSIST_VENDOR_USB_PROP "persist.vendor.usb.config"
 #define PERSIST_VENDOR_USB_EXTRA_PROP "persist.vendor.usb.config.extra"
 #define QDSS_INST_NAME_PROP "vendor.usb.qdss.inst.name"
+#define UVC_ENABLED_PROP "ro.usb.uvc.enabled"
 #define CONFIG_STRING CONFIG_PATH "strings/0x409/configuration"
 
 namespace aidl {
@@ -62,6 +63,7 @@ namespace hardware {
 namespace usb {
 namespace gadget {
 
+using ::android::base::GetBoolProperty;
 using ::android::base::GetProperty;
 using ::android::base::ReadFileToString;
 using ::android::base::SetProperty;
@@ -352,10 +354,22 @@ static Status validateAndSetVidPid(uint64_t functions) {
       ret = setVidPid("0x18d1", "0x4eec");
       break;
     case GadgetFunction::UVC:
-      ret = setVidPid("0x18d1", "0x4eed");
+      if (!GetBoolProperty(UVC_ENABLED_PROP, false)) {
+        ALOGE("UVC function not enabled by config");
+        ret = ::android::hardware::usb::gadget::V1_0::Status::
+            CONFIGURATION_NOT_SUPPORTED;
+      } else {
+        ret = setVidPid("0x18d1", "0x4eed");
+      }
       break;
     case GadgetFunction::ADB | GadgetFunction::UVC:
-      ret = setVidPid("0x18d1", "0x4eee");
+      if (!GetBoolProperty(UVC_ENABLED_PROP, false)) {
+        ALOGE("UVC function not enabled by config");
+        ret = ::android::hardware::usb::gadget::V1_0::Status::
+            CONFIGURATION_NOT_SUPPORTED;
+      } else {
+        ret = setVidPid("0x18d1", "0x4eee");
+      }
       break;
     default:
       ALOGE("Combination not supported");
@@ -424,6 +438,11 @@ Status UsbGadget::setupFunctions(int64_t functions,
           ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
         return Status::ERROR;
     } else {
+      if (!GetBoolProperty(UVC_ENABLED_PROP, false)) {
+        ALOGE("UVC function disabled by config");
+        return Status::ERROR;
+      }
+
       ALOGI("setCurrentUsbFunctions uvc");
       if (linkFunction("uvc.0", i++)) {
         return Status::ERROR;
