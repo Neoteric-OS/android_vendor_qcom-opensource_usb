@@ -48,7 +48,7 @@ using ::android::base::unique_fd;
 using ::ndk::ScopedAStatus;
 
 struct Usb : public BnUsb {
-  Usb();
+  Usb(std::string deviceName, std::string gadgetName);
 
   ScopedAStatus enableContaminantPresenceDetection(
       const std::string& in_portName, bool in_enable,
@@ -108,6 +108,9 @@ struct Usb : public BnUsb {
   unique_fd mEventFd;
   bool switchMode(const std::string& portName, const PortRole& newRole);
   void uevent_work();
+
+  std::string mDevicePath;
+  std::string mGadgetName;
 };
 
 }  // namespace usb
