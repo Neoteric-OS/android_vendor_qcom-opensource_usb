@@ -1257,6 +1257,7 @@ static bool checkUsbInterfaceAutoSuspend(const std::string &devicePath,
       // If display is on, don't allow immediate autosuspend of HID dev
       if (checkUsbHidOnly(devicePath) && !isDisplayOff())
         manageHidPower(devicePath, false);
+      FALLTHROUGH_INTENDED;
     case USB_CLASS_AUDIO:
     case USB_CLASS_HUB:
       ALOGI("auto suspend usb interfaces %s", devicePath.c_str());
