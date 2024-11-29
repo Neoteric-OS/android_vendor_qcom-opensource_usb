@@ -1,3 +1,4 @@
+// clang-format off
 /*
  * Copyright (C) 2018-2021, The Linux Foundation. All rights reserved.
  * Not a Contribution.
@@ -20,6 +21,7 @@
  * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
+// clang-format on
 
 #define LOG_TAG "android.hardware.usb.gadget-service.qti"
 
@@ -61,10 +63,10 @@ namespace usb {
 namespace gadget {
 
 using ::android::base::GetProperty;
+using ::android::base::ReadFileToString;
 using ::android::base::SetProperty;
 using ::android::base::Trim;
 using ::android::base::WriteStringToFile;
-using ::android::base::ReadFileToString;
 using ::android::hardware::usb::gadget::addAdb;
 using ::android::hardware::usb::gadget::kDisconnectWaitUs;
 using ::android::hardware::usb::gadget::linkFunction;
@@ -73,9 +75,9 @@ using ::android::hardware::usb::gadget::setVidPid;
 using ::android::hardware::usb::gadget::unlinkFunctions;
 
 static std::map<std::string, std::tuple<std::string, std::string, std::string> >
-supported_compositions;
+    supported_compositions;
 
-static void createCompositionsMap(std:: string fileName) {
+static void createCompositionsMap(std::string fileName) {
   std::ifstream compositions(fileName);
   std::string line;
 
@@ -84,23 +86,21 @@ static void createCompositionsMap(std:: string fileName) {
     std::tuple<std::string, std::string, std::string> vpa;
     // Ignore comments in the file
     auto pos = line.find('#');
-    if (pos != std::string::npos)
-      line.erase(pos);
+    if (pos != std::string::npos) line.erase(pos);
 
     std::stringstream words(line);
 
     words >> prop >> std::get<0>(vpa) >> std::get<1>(vpa) >> std::get<2>(vpa);
-    // If we get vpa[1], we have the three minimum values needed. Or else we skip
+    // If we get vpa[1], we have the three minimum values needed.
+    // Or else we skip.
     if (!std::get<1>(vpa).empty())
       supported_compositions.insert_or_assign(prop, vpa);
   }
 }
 
-UsbGadget::UsbGadget(const char* const gadget)
-    : mCurrentUsbFunctionsApplied(false),
-      mMonitorFfs(gadget) {
-  if (access(CONFIG_PATH, R_OK) != 0)
-    ALOGE("configfs setup not done yet");
+UsbGadget::UsbGadget(const char *const gadget)
+    : mCurrentUsbFunctionsApplied(false), mMonitorFfs(gadget) {
+  if (access(CONFIG_PATH, R_OK) != 0) ALOGE("configfs setup not done yet");
 
   createCompositionsMap("/vendor/etc/usb_compositions.conf");
   createCompositionsMap("/odm/etc/usb_compositions.conf");
@@ -108,8 +108,7 @@ UsbGadget::UsbGadget(const char* const gadget)
 }
 
 ScopedAStatus UsbGadget::getCurrentUsbFunctions(
-    const shared_ptr<IUsbGadgetCallback> &callback,
-    int64_t in_transactionId) {
+    const shared_ptr<IUsbGadgetCallback> &callback, int64_t in_transactionId) {
   if (callback == nullptr)
     return ScopedAStatus::fromExceptionCode(EX_NULL_POINTER);
 
@@ -126,7 +125,7 @@ ScopedAStatus UsbGadget::getCurrentUsbFunctions(
 }
 
 ScopedAStatus UsbGadget::reset(const shared_ptr<IUsbGadgetCallback> &callback,
-    int64_t in_transactionId) {
+                               int64_t in_transactionId) {
   if (callback == nullptr)
     return ScopedAStatus::fromExceptionCode(EX_NULL_POINTER);
 
@@ -140,28 +139,28 @@ ScopedAStatus UsbGadget::reset(const shared_ptr<IUsbGadgetCallback> &callback,
   return ScopedAStatus::ok();
 }
 
-ScopedAStatus UsbGadget::getUsbSpeed(const shared_ptr<IUsbGadgetCallback> &callback,
-    int64_t in_transactionId) {
+ScopedAStatus UsbGadget::getUsbSpeed(
+    const shared_ptr<IUsbGadgetCallback> &callback, int64_t in_transactionId) {
   if (callback == nullptr)
     return ScopedAStatus::fromExceptionCode(EX_NULL_POINTER);
 
   std::string gadgetName = GetProperty(USB_CONTROLLER_PROP, "");
   std::string current_speed;
   if (ReadFileToString("/sys/class/udc/" + gadgetName + "/current_speed",
-                          &current_speed)) {
-      current_speed = Trim(current_speed);
+                       &current_speed)) {
+    current_speed = Trim(current_speed);
 
-      UsbSpeed speed = UsbSpeed::UNKNOWN;
-      if (current_speed == "low-speed")
-        speed = UsbSpeed::LOWSPEED;
-      else if (current_speed == "full-speed")
-        speed = UsbSpeed::FULLSPEED;
-      else if (current_speed == "high-speed")
-        speed = UsbSpeed::HIGHSPEED;
-      else if (current_speed == "super-speed")
-        speed = UsbSpeed::SUPERSPEED;
-      else if (current_speed == "super-speed-plus")
-        speed = UsbSpeed::SUPERSPEED_10Gb;
+    UsbSpeed speed = UsbSpeed::UNKNOWN;
+    if (current_speed == "low-speed")
+      speed = UsbSpeed::LOWSPEED;
+    else if (current_speed == "full-speed")
+      speed = UsbSpeed::FULLSPEED;
+    else if (current_speed == "high-speed")
+      speed = UsbSpeed::HIGHSPEED;
+    else if (current_speed == "super-speed")
+      speed = UsbSpeed::SUPERSPEED;
+    else if (current_speed == "super-speed-plus")
+      speed = UsbSpeed::SUPERSPEED_10Gb;
 
     callback->getUsbSpeedCb(speed, in_transactionId);
     return ScopedAStatus::ok();
@@ -204,31 +203,44 @@ static std::string qdssFuncname(const char *debug) {
   return qdss;
 }
 
-static std::map<std::string, std::function<std::string()> > supported_funcs {
-  { "adb",              [](){ return "ffs.adb"; } },
-  { "ccid",             [](){ return "ccid.ccid"; } },
-  { "diag",             [](){ return GetProperty(DIAG_FUNC_NAME_PROP, "diag") + ".diag"; } },
-  { "diag_cnss",        [](){ return GetProperty(DIAG_FUNC_NAME_PROP, "diag") + ".diag_mdm2"; } },
-  { "diag_mdm2",        [](){ return GetProperty(DIAG_FUNC_NAME_PROP, "diag") + ".diag_mdm2"; } },
-  { "diag_mdm",         [](){ return GetProperty(DIAG_FUNC_NAME_PROP, "diag") + ".diag_mdm"; } },
-  { "dpl",              [](){ return GetProperty(RMNET_FUNC_NAME_PROP, "gsi") + "." + GetProperty(DPL_INST_NAME_PROP, "dpl"); } },
-  { "mass_storage",     [](){ return "mass_storage.0"; } },
-  { "mtp",              [](){ return "ffs.mtp"; } },
-  { "ncm",              [](){ return "ncm.0"; } },
-  { "ptp",              [](){ return "ffs.ptp"; } },
-  { "qdss",             [](){ return qdssFuncname("0"); } },
-  { "qdss_debug",       [](){ return qdssFuncname("1"); } },
-  { "qdss_mdm",         [](){ return "qdss.qdss_mdm"; } },
-  { "rmnet",            [](){ return GetProperty(RMNET_FUNC_NAME_PROP, "gsi") + "." + GetProperty(RMNET_INST_NAME_PROP, "rmnet"); } },
-  { "rndis",            rndisFuncname },
-  { "serial_cdev",      [](){ return "cser.dun.0"; } },
-  { "serial_cdev_nmea", [](){ return "cser.nmea.1"; } },
-  { "serial_cdev_mdm",  [](){ return "cser.dun.2"; } },
-  { "uac2",             [](){ return "uac2.0"; } },
-  { "uvc",              [](){ return "uvc.0"; } },
+static std::map<std::string, std::function<std::string()> > supported_funcs{
+    {"adb", []() { return "ffs.adb"; }},
+    {"ccid", []() { return "ccid.ccid"; }},
+    {"diag",
+     []() { return GetProperty(DIAG_FUNC_NAME_PROP, "diag") + ".diag"; }},
+    {"diag_cnss",
+     []() { return GetProperty(DIAG_FUNC_NAME_PROP, "diag") + ".diag_mdm2"; }},
+    {"diag_mdm2",
+     []() { return GetProperty(DIAG_FUNC_NAME_PROP, "diag") + ".diag_mdm2"; }},
+    {"diag_mdm",
+     []() { return GetProperty(DIAG_FUNC_NAME_PROP, "diag") + ".diag_mdm"; }},
+    {"dpl",
+     []() {
+       return GetProperty(RMNET_FUNC_NAME_PROP, "gsi") + "." +
+              GetProperty(DPL_INST_NAME_PROP, "dpl");
+     }},
+    {"mass_storage", []() { return "mass_storage.0"; }},
+    {"mtp", []() { return "ffs.mtp"; }},
+    {"ncm", []() { return "ncm.0"; }},
+    {"ptp", []() { return "ffs.ptp"; }},
+    {"qdss", []() { return qdssFuncname("0"); }},
+    {"qdss_debug", []() { return qdssFuncname("1"); }},
+    {"qdss_mdm", []() { return "qdss.qdss_mdm"; }},
+    {"rmnet",
+     []() {
+       return GetProperty(RMNET_FUNC_NAME_PROP, "gsi") + "." +
+              GetProperty(RMNET_INST_NAME_PROP, "rmnet");
+     }},
+    {"rndis", rndisFuncname},
+    {"serial_cdev", []() { return "cser.dun.0"; }},
+    {"serial_cdev_nmea", []() { return "cser.nmea.1"; }},
+    {"serial_cdev_mdm", []() { return "cser.dun.2"; }},
+    {"uac2", []() { return "uac2.0"; }},
+    {"uvc", []() { return "uvc.0"; }},
 };
 
-int UsbGadget::addFunctionsFromPropString(std::string prop, bool &ffsEnabled, int &i) {
+int UsbGadget::addFunctionsFromPropString(std::string prop, bool &ffsEnabled,
+                                          int &i) {
   if (!supported_compositions.count(prop)) {
     ALOGE("Composition \"%s\" unsupported", prop.c_str());
     return -1;
@@ -239,13 +251,12 @@ int UsbGadget::addFunctionsFromPropString(std::string prop, bool &ffsEnabled, in
 
   // some compositions differ from the order given in the property string
   // e.g. ADB may appear somewhere in the middle instead of being last
-  if (!actual_order.empty())
-    prop = actual_order;
+  if (!actual_order.empty()) prop = actual_order;
 
   WriteStringToFile(prop, CONFIG_STRING);
 
   // tokenize the prop string and add each function individually
-  for (size_t start = 0; start != std::string::npos; ) {
+  for (size_t start = 0; start != std::string::npos;) {
     size_t end = prop.find_first_of(',', start);
     std::string funcname;
     if (end == std::string::npos) {
@@ -263,7 +274,8 @@ int UsbGadget::addFunctionsFromPropString(std::string prop, bool &ffsEnabled, in
 
     ALOGI("Adding %s", funcname.c_str());
     if (funcname == "adb") {
-      if (addAdb(&mMonitorFfs, &i) != ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
+      if (addAdb(&mMonitorFfs, &i) !=
+          ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
         return -1;
       ffsEnabled = true;
     } else if (linkFunction(supported_funcs[funcname]().c_str(), i))
@@ -276,7 +288,8 @@ int UsbGadget::addFunctionsFromPropString(std::string prop, bool &ffsEnabled, in
     ++i;
   }
 
-  if (setVidPid(vid.c_str(), pid.c_str()) != ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
+  if (setVidPid(vid.c_str(), pid.c_str()) !=
+      ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
     return -1;
 
   return 0;
@@ -284,7 +297,7 @@ int UsbGadget::addFunctionsFromPropString(std::string prop, bool &ffsEnabled, in
 
 static Status validateAndSetVidPid(uint64_t functions) {
   ::android::hardware::usb::gadget::V1_0::Status ret =
-    ::android::hardware::usb::gadget::V1_0::Status::SUCCESS;
+      ::android::hardware::usb::gadget::V1_0::Status::SUCCESS;
   switch (functions) {
     case static_cast<uint64_t>(GadgetFunction::ADB):
       ret = setVidPid("0x18d1", "0x4e11");
@@ -329,7 +342,7 @@ static Status validateAndSetVidPid(uint64_t functions) {
       ret = setVidPid("0x18d1", "0x2d04");
       break;
     case GadgetFunction::ADB | GadgetFunction::ACCESSORY |
-	    GadgetFunction::AUDIO_SOURCE:
+        GadgetFunction::AUDIO_SOURCE:
       ret = setVidPid("0x18d1", "0x2d05");
       break;
     case static_cast<uint64_t>(GadgetFunction::NCM):
@@ -346,19 +359,22 @@ static Status validateAndSetVidPid(uint64_t functions) {
       break;
     default:
       ALOGE("Combination not supported");
-      ret = ::android::hardware::usb::gadget::V1_0::Status::CONFIGURATION_NOT_SUPPORTED;
+      ret = ::android::hardware::usb::gadget::V1_0::Status::
+          CONFIGURATION_NOT_SUPPORTED;
   }
   return static_cast<Status>(ret);
 }
 
-Status UsbGadget::setupFunctions(
-    int64_t functions, const shared_ptr<IUsbGadgetCallback> &callback,
-    int64_t timeout, int64_t in_transactionId) {
+Status UsbGadget::setupFunctions(int64_t functions,
+                                 const shared_ptr<IUsbGadgetCallback> &callback,
+                                 int64_t timeout, int64_t in_transactionId) {
   bool ffsEnabled = false;
   int i = 0;
   std::string gadgetName = GetProperty(USB_CONTROLLER_PROP, "");
-  std::string vendorProp = GetProperty(VENDOR_USB_PROP, GetProperty(PERSIST_VENDOR_USB_PROP, ""));
-  std::string vendorExtraProp = GetProperty(PERSIST_VENDOR_USB_EXTRA_PROP, "none");
+  std::string vendorProp =
+      GetProperty(VENDOR_USB_PROP, GetProperty(PERSIST_VENDOR_USB_PROP, ""));
+  std::string vendorExtraProp =
+      GetProperty(PERSIST_VENDOR_USB_EXTRA_PROP, "none");
 
   if (gadgetName.empty()) {
     ALOGE("UDC name not defined");
@@ -366,30 +382,28 @@ Status UsbGadget::setupFunctions(
   }
 
   if (((functions & GadgetFunction::RNDIS) != 0) ||
-       ((functions & GadgetFunction::NCM) != 0)) {
+      ((functions & GadgetFunction::NCM) != 0)) {
     ALOGI("setCurrentUsbFunctions rndis");
-    std::string tetherComp = (functions & GadgetFunction::RNDIS) ? "rndis" : "ncm";
+    std::string tetherComp =
+        (functions & GadgetFunction::RNDIS) ? "rndis" : "ncm";
 
-    if (vendorExtraProp != "none")
-      tetherComp += "," + vendorExtraProp;
+    if (vendorExtraProp != "none") tetherComp += "," + vendorExtraProp;
 
-    if (functions & GadgetFunction::ADB)
-      tetherComp += ",adb";
+    if (functions & GadgetFunction::ADB) tetherComp += ",adb";
 
     if (addFunctionsFromPropString(tetherComp, ffsEnabled, i))
       return Status::ERROR;
   } else if (functions == static_cast<uint64_t>(GadgetFunction::ADB) &&
-      !vendorProp.empty() && vendorProp != "adb") {
+             !vendorProp.empty() && vendorProp != "adb") {
     // override adb-only with additional QTI functions if vendor.usb.config
     // or persist.vendor.usb.config is set
 
     // tack on ADB to the property string if not there, since we only arrive
     // here if "USB debugging enabled" is chosen which implies ADB
-    if (vendorProp.find("adb") == std::string::npos)
-      vendorProp += ",adb";
+    if (vendorProp.find("adb") == std::string::npos) vendorProp += ",adb";
 
     ALOGI("setting composition from %s: %s", VENDOR_USB_PROP,
-            vendorProp.c_str());
+          vendorProp.c_str());
 
     // look up & parse prop string and link each function into the composition
     if (addFunctionsFromPropString(vendorProp, ffsEnabled, i)) {
@@ -397,33 +411,38 @@ Status UsbGadget::setupFunctions(
       unlinkFunctions(CONFIG_PATH);
       i = 0;
       ffsEnabled = true;
-      if (addAdb(&mMonitorFfs, &i) != ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
+      if (addAdb(&mMonitorFfs, &i) !=
+          ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
         return Status::ERROR;
     }
-  } else { // standard Android supported functions
+  } else {  // standard Android supported functions
     WriteStringToFile("android", CONFIG_STRING);
 
     if ((functions & GadgetFunction::UVC) == 0) {
-      if (addGenericAndroidFunctions(&mMonitorFfs, functions, &ffsEnabled, &i)
-                != ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
+      if (addGenericAndroidFunctions(&mMonitorFfs, functions, &ffsEnabled,
+                                     &i) !=
+          ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
         return Status::ERROR;
     } else {
-        ALOGI("setCurrentUsbFunctions uvc");
-        if (linkFunction("uvc.0", i++)) {
-            return Status::ERROR;
-        }
+      ALOGI("setCurrentUsbFunctions uvc");
+      if (linkFunction("uvc.0", i++)) {
+        return Status::ERROR;
+      }
     }
 
     if ((functions & GadgetFunction::ADB) != 0) {
       ffsEnabled = true;
-      if (addAdb(&mMonitorFfs, &i) != ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
+      if (addAdb(&mMonitorFfs, &i) !=
+          ::android::hardware::usb::gadget::V1_0::Status::SUCCESS)
         return Status::ERROR;
     }
   }
 
-  if (functions & (GadgetFunction::ADB | GadgetFunction::MTP | GadgetFunction::PTP)) {
+  if (functions &
+      (GadgetFunction::ADB | GadgetFunction::MTP | GadgetFunction::PTP)) {
     if (symlink(CONFIG_PATH, OS_DESC_PATH)) {
-      ALOGE("Cannot create symlink %s -> %s errno:%d", CONFIG_PATH, OS_DESC_PATH, errno);
+      ALOGE("Cannot create symlink %s -> %s errno:%d", CONFIG_PATH,
+            OS_DESC_PATH, errno);
       return Status::ERROR;
     }
   }
@@ -434,7 +453,7 @@ Status UsbGadget::setupFunctions(
     mCurrentUsbFunctionsApplied = true;
     if (callback)
       callback->setCurrentUsbFunctionsCb(functions, Status::SUCCESS,
-                      in_transactionId);
+                                         in_transactionId);
     ALOGI("Gadget pullup without FFS fuctions");
     return Status::SUCCESS;
   }
@@ -444,8 +463,9 @@ Status UsbGadget::setupFunctions(
   // dies and restarts.
   mMonitorFfs.registerFunctionsAppliedCallback(
       [](bool functionsApplied, void *payload) {
-        ((UsbGadget*)payload)->mCurrentUsbFunctionsApplied = functionsApplied;
-      }, this);
+        ((UsbGadget *)payload)->mCurrentUsbFunctionsApplied = functionsApplied;
+      },
+      this);
   mMonitorFfs.startMonitor();
 
   ALOGI("Started monitor for FFS functions");
@@ -462,9 +482,9 @@ Status UsbGadget::setupFunctions(
   return Status::SUCCESS;
 }
 
-ScopedAStatus UsbGadget::setCurrentUsbFunctions(int64_t functions,
-                const shared_ptr<IUsbGadgetCallback> &callback,
-                int64_t timeout, int64_t in_transactionId) {
+ScopedAStatus UsbGadget::setCurrentUsbFunctions(
+    int64_t functions, const shared_ptr<IUsbGadgetCallback> &callback,
+    int64_t timeout, int64_t in_transactionId) {
   std::unique_lock<std::mutex> lk(mLockSetCurrentFunction);
 
   mCurrentUsbFunctions = functions;
@@ -482,9 +502,8 @@ ScopedAStatus UsbGadget::setCurrentUsbFunctions(int64_t functions,
   if (functions == static_cast<uint64_t>(GadgetFunction::NONE)) {
     if (callback == nullptr)
       return ScopedAStatus::fromExceptionCode(EX_NULL_POINTER);
-    ScopedAStatus ret = callback->setCurrentUsbFunctionsCb(functions,
-                    Status::SUCCESS,
-                    in_transactionId);
+    ScopedAStatus ret = callback->setCurrentUsbFunctionsCb(
+        functions, Status::SUCCESS, in_transactionId);
     if (!ret.isOk())
       ALOGE("Error while calling setCurrentUsbFunctionsCb %s",
             ret.getDescription().c_str());
@@ -507,16 +526,17 @@ ScopedAStatus UsbGadget::setCurrentUsbFunctions(int64_t functions,
 error:
   ALOGI("Usb Gadget setcurrent functions failed");
   if (callback == nullptr)
-    return ScopedAStatus::fromServiceSpecificErrorWithMessage(-1,
-                    "Usb Gadget setcurrent functions failed");
-  ScopedAStatus ret = callback->setCurrentUsbFunctionsCb(functions, status, in_transactionId);
+    return ScopedAStatus::fromServiceSpecificErrorWithMessage(
+        -1, "Usb Gadget setcurrent functions failed");
+  ScopedAStatus ret =
+      callback->setCurrentUsbFunctionsCb(functions, status, in_transactionId);
   if (!ret.isOk()) {
     ALOGE("Error while calling setCurrentUsbFunctionsCb %s",
           ret.getDescription().c_str());
     return ret;
   }
-  return ScopedAStatus::fromServiceSpecificErrorWithMessage(-1,
-                    "Usb Gadget setcurrent functions failed");
+  return ScopedAStatus::fromServiceSpecificErrorWithMessage(
+      -1, "Usb Gadget setcurrent functions failed");
 }
 }  // namespace gadget
 }  // namespace usb
@@ -525,11 +545,11 @@ error:
 }  // namespace aidl
 
 int main() {
-  using android::base::GetProperty;
   using ::aidl::android::hardware::usb::gadget::UsbGadget;
+  using android::base::GetProperty;
 
   std::string gadgetName = GetProperty("persist.vendor.usb.controller",
-      GetProperty(USB_CONTROLLER_PROP, ""));
+                                       GetProperty(USB_CONTROLLER_PROP, ""));
 
   if (gadgetName.empty()) {
     ALOGE("UDC name not defined");
@@ -537,13 +557,15 @@ int main() {
   }
 
   ABinderProcess_setThreadPoolMaxThreadCount(0);
-  std::shared_ptr<UsbGadget> usb = ndk::SharedRefBase::make<UsbGadget>(gadgetName.c_str());
+  std::shared_ptr<UsbGadget> usb =
+      ndk::SharedRefBase::make<UsbGadget>(gadgetName.c_str());
 
   const std::string instance = std::string(UsbGadget::descriptor) + "/default";
-  binder_status_t status = AServiceManager_addService(usb->asBinder().get(), instance.c_str());
+  binder_status_t status =
+      AServiceManager_addService(usb->asBinder().get(), instance.c_str());
   CHECK(status == STATUS_OK);
 
   ALOGI("QTI USB Gadget HAL Ready.");
   ABinderProcess_joinThreadPool();
-  return -1; // Should never be reached
+  return -1;  // Should never be reached
 }
