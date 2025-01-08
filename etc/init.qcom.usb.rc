@@ -87,6 +87,8 @@ on zygote-start
     mkdir /config/usb_gadget/g1/functions/ffs.diag 0770 system usb
     mkdir /config/usb_gadget/g1/functions/ffs.diag_mdm 0770 system usb
     mkdir /config/usb_gadget/g1/functions/ffs.diag_mdm2 0770 system usb
+    mkdir /config/usb_gadget/g1/functions/ffs.aoa 0770 system usb
+    mkdir /config/usb_gadget/g1/functions/ffs.ctrl 0770 system usb
     mkdir /config/usb_gadget/g1/functions/diag.diag 0770 system usb
     mkdir /config/usb_gadget/g1/functions/diag.diag_mdm 0770 system usb
     mkdir /config/usb_gadget/g1/functions/diag.diag_mdm2 0770 system usb
@@ -166,6 +168,10 @@ on zygote-start
     mkdir /dev/usb-ffs 0775 shell system
     mkdir /dev/usb-ffs/adb 0770 shell system
     mount functionfs adb /dev/usb-ffs/adb uid=2000,gid=1000,rmode=0770,fmode=0660
+    mkdir /dev/usb-ffs/aoa 0770 shell system
+    mount functionfs aoa /dev/usb-ffs/aoa uid=2000,gid=1000,rmode=0770,fmode=0660
+    mkdir /dev/usb-ffs/ctrl 0770 shell system
+    mount functionfs ctrl /dev/usb-ffs/ctrl uid=2000,gid=1000,rmode=0770,fmode=0660
     mkdir /dev/ffs-diag 0770 shell system
     mount functionfs diag /dev/ffs-diag uid=2000,gid=1000,rmode=0770,fmode=0660,no_disconnect=1
     mkdir /dev/ffs-diag-1 0770 shell system
