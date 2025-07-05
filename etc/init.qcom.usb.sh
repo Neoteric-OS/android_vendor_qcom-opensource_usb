@@ -28,7 +28,7 @@
 #
 
 # Changes from Qualcomm Innovation Center are provided under the following license:
-# Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+# Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 # SPDX-License-Identifier: BSD-3-Clause-Clear
 #
 
@@ -58,7 +58,13 @@ if [ "$(getprop ro.build.type)" != "user" ]; then
     else
 	  case "$(getprop ro.baseband)" in
 	      "apq")
-	          setprop persist.vendor.usb.config diag,adb
+		if [ "$target" == "niobe" ] || [ "$target" == "seraph" ] || [ "$target" == "anorak61" ] || [ "$target" == "neo61" ]; then
+			setprop persist.vendor.usb.config diag,qdss,adb
+		elif [ "$target" == "gen5" ]; then
+			setprop persist.vendor.usb.config adb
+		else
+			setprop persist.vendor.usb.config diag,adb
+		fi
 	      ;;
 	      *)
 	      case "$soc_hwplatform" in
@@ -108,9 +114,12 @@ if [ "$(getprop ro.build.type)" != "user" ]; then
 	              "sdm845" | "sdm710")
 		          setprop persist.vendor.usb.config diag,serial_cdev,rmnet,dpl,adb
 		      ;;
-	              "msmnile" | "sm6150" | "trinket" | "lito" | "atoll" | "bengal" | "lahaina" | "holi" | \
-				  "taro" | "kalama" | "pineapple" | "sun" | "parrot")
+	              "msmnile" | "sm6150" | "trinket" | "lito" | "atoll" | "bengal" | "lahaina" | "holi" | "blair" | \
+				  "taro" | "kalama" | "pineapple" | "sun" | "parrot" | "pitti" | "volcano")
 			  setprop persist.vendor.usb.config diag,serial_cdev,rmnet,dpl,qdss,adb
+		      ;;
+		      "gen4")
+			  setprop persist.vendor.usb.config adb
 		      ;;
 	              *)
 		          setprop persist.vendor.usb.config diag,adb
